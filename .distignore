@@ -1,0 +1,54 @@
+# Files and directories excluded from the distribution zip.
+# Consumed by build_zip.ps1 - not a standard Moodle file.
+#
+# README.md, CHANGELOG.md and LICENSE are deliberately NOT excluded: the buyer
+# opens the package and must find documentation and the licence text in it.
+
+# Version control
+.git
+.gitignore
+.gitattributes
+.github
+
+# Tests and dev tooling
+tests
+phpunit.xml
+phpunit.xml.dist
+.phpunit.result.cache
+.vscode
+.idea
+node_modules
+package.json
+package-lock.json
+Gruntfile.js
+.grunt
+
+# Distribution tooling itself
+build_zip.ps1
+build_zip.sh
+.distignore
+
+
+# Internal tooling and the private signing key — must NEVER ship to customers.
+# generate_license.php signs licences with license_private.key; shipping either
+# would let anyone forge licence keys for this plugin.
+generate_license.php
+license_private.key
+*.key
+*.pem
+
+# Internal docs and assistants
+.claude
+CLAUDE.md
+AUDIT.md
+CI-REPORT.md
+REVIEWER-NOTES.md
+LECCIONES.md
+MARKETPLACE-LISTING.md
+Security_Report_IA_Forum.txt
+*.txt
+
+# Deliberately NOT excluded — these MUST ship:
+#   README.md
+#   CHANGELOG.md
+#   LICENSE

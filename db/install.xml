@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="local/forumia/db" VERSION="20250310" COMMENT="XMLDB file for local/forumia"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
+>
+  <TABLES>
+    <TABLE NAME="local_forumia_config" COMMENT="Per-forum configuration for the IA assistant">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="forumid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="FK to {forum}.id"/>
+        <FIELD NAME="enabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="1=enabled, 0=disabled"/>
+        <FIELD NAME="bot_userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="FK to {user}.id — the Moodle user that posts IA responses"/>
+        <FIELD NAME="response_mode" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="immediate" SEQUENCE="false" COMMENT="immediate or daily"/>
+        <FIELD NAME="daily_prompt" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="System prompt for daily summary mode"/>
+        <FIELD NAME="immediate_prompt" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="System prompt for immediate response mode"/>
+        <FIELD NAME="disclaimer" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Disclaimer appended to every IA response"/>
+        <FIELD NAME="max_requests_day" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="50" SEQUENCE="false" COMMENT="Max OpenAI calls per day for this forum"/>
+        <FIELD NAME="max_requests_user_day" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="1" SEQUENCE="false" COMMENT="Max IA responses per user per day in this forum (0 = unlimited)"/>
+        <FIELD NAME="delay_response" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="1 = delay IA reply by 1 hour (immediate mode only)"/>
+        <FIELD NAME="grading_prompt" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Grading criteria sent to OpenAI when the forum has whole-forum grading enabled (grade_forum > 0). Empty = grading disabled."/>
+        <FIELD NAME="inactivity_enabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="1 = AI posts a discussion starter after N days without forum activity"/>
+        <FIELD NAME="inactivity_days" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="7" SEQUENCE="false" COMMENT="Days without a human reply in a discussion before the AI reactivates it"/>
+        <FIELD NAME="inactivity_repeat_days" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="7" SEQUENCE="false" COMMENT="Minimum days between consecutive AI reactivation replies in the same discussion"/>
+        <FIELD NAME="inactivity_prompt" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="System prompt for the AI-generated inactivity reactivation reply"/>
+        <FIELD NAME="inactivity_deadline" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Timestamp after which the AI stops reactivating threads. 0 = fall back to the forum due date"/>
+        <FIELD NAME="last_inactivity_post" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Timestamp of the last inactivity task run for this forum (observability)"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="fk_forumid" TYPE="foreign" FIELDS="forumid" REFTABLE="forum" REFFIELDS="id"/>
+        <KEY NAME="fk_bot_userid" TYPE="foreign" FIELDS="bot_userid" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_forumid" UNIQUE="true" FIELDS="forumid"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="local_forumia_usage" COMMENT="Daily usage counter per forum for rate limiting — no personal data stored">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="forumid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="FK to {forum}.id"/>
+        <FIELD NAME="usage_date" TYPE="char" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Date in YYYY-MM-DD format"/>
+        <FIELD NAME="request_count" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="fk_forumid" TYPE="foreign" FIELDS="forumid" REFTABLE="forum" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_forumid_date" UNIQUE="true" FIELDS="forumid, usage_date"/>
+      </INDEXES>
+    </TABLE>
+  </TABLES>
+</XMLDB>

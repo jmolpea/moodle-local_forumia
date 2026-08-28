@@ -1,0 +1,41 @@
+# ---------------------------------------------------------------------------
+# Secrets — NEVER commit these.
+# license_private.key signs licence keys for this plugin. If it ever reaches a
+# commit, rotating the key is mandatory: deleting the commit is not enough,
+# and rotation invalidates every licence already issued.
+# ---------------------------------------------------------------------------
+license_private.key
+*.key
+*.pem
+.env
+.env.*
+
+# Internal tooling that must not ship to customers
+generate_license.php
+
+# Internal working documents
+AUDIT.md
+CI-REPORT.md
+REVIEWER-NOTES.md
+LECCIONES.md
+Security_Report_*.txt
+.claude/
+
+# Build output
+*.zip
+build/
+dist/
+
+# Dependencies and tooling
+vendor/
+node_modules/
+.phpunit.result.cache
+.grunt/
+
+# IDE and OS
+.idea/
+.vscode/
+*.sublime-*
+.DS_Store
+Thumbs.db
+desktop.ini
