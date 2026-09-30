@@ -25,7 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $capabilities = [
-    // Allows a user to enable and configure the IA assistant for a specific forum.
+    // Allows a user to enable and configure the AI assistant for a specific forum.
     // Assign to roles that manage course content (editingteacher, manager).
     'local/forumia:managesettings' => [
         'captype'      => 'write',
@@ -36,16 +36,13 @@ $capabilities = [
         ],
     ],
 
-    // Allows a user to see the IA disclaimer appended to bot-generated posts.
-    // Granted to all authenticated users by default.
-    'local/forumia:viewdisclaimer' => [
-        'captype'      => 'read',
-        'contextlevel' => CONTEXT_COURSE,
-        'archetypes'   => [
-            'student'        => CAP_ALLOW,
-            'teacher'        => CAP_ALLOW,
-            'editingteacher' => CAP_ALLOW,
-            'manager'        => CAP_ALLOW,
-        ],
+    // Designates an account whose name the AI assistant may publish under.
+    // Only checked in the system context, and granted to no role by default:
+    // a site administrator must assign it deliberately to a dedicated account.
+    'local/forumia:actasassistant' => [
+        'riskbitmask'  => RISK_SPAM,
+        'captype'      => 'write',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'archetypes'   => [],
     ],
 ];

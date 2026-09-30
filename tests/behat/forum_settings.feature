@@ -17,11 +17,10 @@ Feature: Configure the Forumia assistant on a forum
       | user     | course | role           |
       | teacher1 | C1     | editingteacher |
       | student1 | C1     | student        |
-      # The assistant account has to be a teacher or manager in the course, or
-      # the site default bot: those are the only candidates the selector offers.
-      # Enrolled here as a non-editing teacher, which is what the README
-      # recommends for a dedicated assistant account.
-      | forumbot | C1     | teacher        |
+    # Only an account designated by a site administrator can publish the
+    # assistant's replies. Here it is the site default assistant account.
+    And the following config values are set as admin:
+      | defaultbot | forumbot | local_forumia |
     And the following "activities" exist:
       | activity | name        | course | idnumber |
       | forum    | Test forum  | C1     | forum1   |
@@ -47,6 +46,12 @@ Feature: Configure the Forumia assistant on a forum
     And I navigate to "Forumia" in current page administration
     And the field "Enable Forumia in this forum" matches value "1"
     And the field "Daily request limit for this forum" matches value "25"
+
+  Scenario: Course staff are not offered as the assistant account
+    Given I am on the "Test forum" "forum activity" page logged in as "teacher1"
+    When I navigate to "Forumia" in current page administration
+    Then the "AI assistant account" select box should contain "Course Assistant (forumbot)"
+    And the "AI assistant account" select box should not contain "Teacher One (teacher1)"
 
   @javascript
   Scenario: Enabling the assistant without an account is rejected

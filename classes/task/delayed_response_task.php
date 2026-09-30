@@ -15,11 +15,12 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Adhoc task that publishes a delayed IA response.
+ * Adhoc task that generates and publishes an immediate-mode AI response.
  *
- * Queued by forum_processor when delay_response is enabled on a forum.
- * The task is scheduled 1 hour after the triggering student post and
- * calls the same processing logic as the immediate-mode observer path.
+ * Queued by forum_processor for every student post in an immediate-mode
+ * forum, so the AI provider is always called from cron and never inside the
+ * web request that saved the post. It runs on the next cron pass, or one hour
+ * after the post when delay_response is enabled on the forum.
  *
  * @package   local_forumia
  * @copyright 2025 RSMAX Consulting S.L.
@@ -31,7 +32,7 @@ namespace local_forumia\task;
 use local_forumia\forum_processor;
 
 /**
- * Adhoc task for delayed IA responses in immediate mode.
+ * Adhoc task for AI responses in immediate mode.
  */
 class delayed_response_task extends \core\task\adhoc_task {
     /**
@@ -60,11 +61,19 @@ class delayed_response_task extends \core\task\adhoc_task {
             return;
         }
 
-        forum_processor::process_new_post(
-            (int) $data->forumid,
-            (int) $data->postid,
-            (int) $data->authorid,
-            true   // Bypass the delay-queueing step ($fromtask = true).
-        );
+        // Failures here are configuration problems (no API key, blocked
+        // endpoint, missing licence) that a retry would not fix, and provider
+        // errors are already handled inside the client. Log and finish rather
+        // than let the task manager retry the same post again and again.
+        try {
+            forum_processor::process_new_post(
+                (int) $data->forumid,
+                (int) $data->postid,
+                (int) $data->authorid,
+                true   // Running from the task: do the actual work.
+            );
+        } catch (\Throwable $e) {
+            mtrace('[local_forumia] delayed_response_task failed for post ' . (int) $data->postid . ': ' . $e->getMessage());
+        }
     }
 }

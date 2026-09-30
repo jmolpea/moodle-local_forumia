@@ -218,5 +218,55 @@ function xmldb_local_forumia_upgrade(int $oldversion): bool {
         upgrade_plugin_savepoint(true, 2026082500, 'local', 'forumia');
     }
 
+    // Version 1.8.0 — 2026093000. Changes requested in the Moodle Marketplace review.
+    // - AI grading is decoupled from replies and becomes an explicit per-forum
+    // opt-in: grading_mode (0 off, 1 suggest, 2 automatic), grading_delay
+    // (hours after a student's first post) and grading_userid (the teacher
+    // recorded as grader in automatic mode). Every existing forum starts with
+    // grading OFF, including forums that kept the old pre-filled grading
+    // prompt: nobody explicitly opted in to AI grading there.
+    // - local_forumia_suggestion: one AI evaluation per student and forum.
+    // - Removes three settings that no code ever read.
+    if ($oldversion < 2026093000) {
+        $table  = new xmldb_table('local_forumia_config');
+        $fields = [
+            new xmldb_field('grading_mode', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'grading_prompt'),
+            new xmldb_field('grading_delay', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '12', 'grading_mode'),
+            new xmldb_field('grading_userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'grading_delay'),
+        ];
+        foreach ($fields as $field) {
+            if (!$dbman->field_exists($table, $field)) {
+                $dbman->add_field($table, $field);
+            }
+        }
+        $key = new xmldb_key('fk_grading_userid', XMLDB_KEY_FOREIGN, ['grading_userid'], 'user', ['id']);
+        $dbman->add_key($table, $key);
+
+        $table = new xmldb_table('local_forumia_suggestion');
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $table->add_field('forumid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('grade', XMLDB_TYPE_INTEGER, '10', null, null, null, null);
+        $table->add_field('grademax', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('rationale', XMLDB_TYPE_TEXT, null, null, null, null, null);
+        $table->add_field('postcount', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('status', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_key('fk_forumid', XMLDB_KEY_FOREIGN, ['forumid'], 'forum', ['id']);
+        $table->add_key('fk_userid', XMLDB_KEY_FOREIGN, ['userid'], 'user', ['id']);
+        $table->add_index('idx_forumid_userid', XMLDB_INDEX_UNIQUE, ['forumid', 'userid']);
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        unset_config('userratelimit_enabled', 'local_forumia');
+        unset_config('userratelimit_max', 'local_forumia');
+        unset_config('dailyhour', 'local_forumia');
+
+        upgrade_plugin_savepoint(true, 2026093000, 'local', 'forumia');
+    }
+
     return true;
 }

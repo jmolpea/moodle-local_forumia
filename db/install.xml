@@ -17,7 +17,10 @@
         <FIELD NAME="max_requests_day" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="50" SEQUENCE="false" COMMENT="Max OpenAI calls per day for this forum"/>
         <FIELD NAME="max_requests_user_day" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="1" SEQUENCE="false" COMMENT="Max IA responses per user per day in this forum (0 = unlimited)"/>
         <FIELD NAME="delay_response" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="1 = delay IA reply by 1 hour (immediate mode only)"/>
-        <FIELD NAME="grading_prompt" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Grading criteria sent to OpenAI when the forum has whole-forum grading enabled (grade_forum > 0). Empty = grading disabled."/>
+        <FIELD NAME="grading_prompt" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Grading criteria sent to the AI provider when AI grading is enabled. Empty = use the default criteria."/>
+        <FIELD NAME="grading_mode" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="AI grading: 0 = off, 1 = suggest (a teacher confirms), 2 = automatic (only students without a grade)"/>
+        <FIELD NAME="grading_delay" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="12" SEQUENCE="false" COMMENT="Hours after a student's first post before their participation is evaluated (once)"/>
+        <FIELD NAME="grading_userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="FK to {user}.id - the teacher who enabled automatic grading and is recorded as the grader"/>
         <FIELD NAME="inactivity_enabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="1 = AI posts a discussion starter after N days without forum activity"/>
         <FIELD NAME="inactivity_days" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="7" SEQUENCE="false" COMMENT="Days without a human reply in a discussion before the AI reactivates it"/>
         <FIELD NAME="inactivity_repeat_days" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="7" SEQUENCE="false" COMMENT="Minimum days between consecutive AI reactivation replies in the same discussion"/>
@@ -31,6 +34,7 @@
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
         <KEY NAME="fk_forumid" TYPE="foreign" FIELDS="forumid" REFTABLE="forum" REFFIELDS="id"/>
         <KEY NAME="fk_bot_userid" TYPE="foreign" FIELDS="bot_userid" REFTABLE="user" REFFIELDS="id"/>
+        <KEY NAME="fk_grading_userid" TYPE="foreign" FIELDS="grading_userid" REFTABLE="user" REFFIELDS="id"/>
       </KEYS>
       <INDEXES>
         <INDEX NAME="idx_forumid" UNIQUE="true" FIELDS="forumid"/>
@@ -49,6 +53,28 @@
       </KEYS>
       <INDEXES>
         <INDEX NAME="idx_forumid_date" UNIQUE="true" FIELDS="forumid, usage_date"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="local_forumia_suggestion" COMMENT="One AI evaluation per student and forum. The unique index guarantees a student is never evaluated twice.">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="forumid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="FK to {forum}.id"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="FK to {user}.id - the student evaluated"/>
+        <FIELD NAME="grade" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Grade proposed by the AI; null when the AI gave no valid grade"/>
+        <FIELD NAME="grademax" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Forum maximum grade at evaluation time"/>
+        <FIELD NAME="rationale" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Short justification from the AI, shown to teachers only"/>
+        <FIELD NAME="postcount" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Number of the student's posts that were assessed"/>
+        <FIELD NAME="status" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="0 pending, 1 accepted, 2 discarded, 3 applied automatically, 4 failed"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="fk_forumid" TYPE="foreign" FIELDS="forumid" REFTABLE="forum" REFFIELDS="id"/>
+        <KEY NAME="fk_userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_forumid_userid" UNIQUE="true" FIELDS="forumid, userid"/>
       </INDEXES>
     </TABLE>
   </TABLES>

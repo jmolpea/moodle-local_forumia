@@ -47,31 +47,43 @@ function local_forumia_extend_settings_navigation(\settings_navigation $settings
         return;
     }
 
-    $context    = \context_module::instance($PAGE->cm->id);
+    $modulecontext = \context_module::instance($PAGE->cm->id);
     $coursecontext = \context_course::instance($PAGE->cm->course);
 
-    // Only show the link to users who can manage IA settings.
-    if (!has_capability('local/forumia:managesettings', $coursecontext)) {
-        return;
+    // Only show the settings link to users who can manage the assistant.
+    if (has_capability('local/forumia:managesettings', $coursecontext)) {
+        $url = new \moodle_url('/local/forumia/forum_settings.php', [
+            'forumid' => $PAGE->cm->instance,
+            'cmid'    => $PAGE->cm->id,
+        ]);
+        $forumnode->add(
+            get_string('forum_settings_link', 'local_forumia'),
+            $url,
+            \navigation_node::TYPE_SETTING,
+            null,
+            'local_forumia_settings',
+            new \pix_icon('i/settings', '')
+        );
     }
 
-    // Retrieve the forum record to get its ID.
-    $forum = $DB->get_record('forum', ['id' => $PAGE->cm->instance]);
-    if (!$forum) {
-        return;
+    // AI grade suggestions: shown to graders when the forum uses the feature
+    // or still has suggestions waiting for review.
+    if (has_capability('mod/forum:grade', $modulecontext)) {
+        $forumid = (int) $PAGE->cm->instance;
+        $enabled = $DB->record_exists_select(
+            'local_forumia_config',
+            'forumid = :forumid AND grading_mode > 0',
+            ['forumid' => $forumid]
+        );
+        if ($enabled || $DB->record_exists('local_forumia_suggestion', ['forumid' => $forumid])) {
+            $forumnode->add(
+                get_string('suggestions_link', 'local_forumia'),
+                new \moodle_url('/local/forumia/grade_suggestions.php', ['cmid' => $PAGE->cm->id]),
+                \navigation_node::TYPE_SETTING,
+                null,
+                'local_forumia_suggestions',
+                new \pix_icon('i/grades', '')
+            );
+        }
     }
-
-    $url = new \moodle_url('/local/forumia/forum_settings.php', [
-        'forumid' => $forum->id,
-        'cmid'    => $PAGE->cm->id,
-    ]);
-
-    $forumnode->add(
-        get_string('forum_settings_link', 'local_forumia'),
-        $url,
-        \navigation_node::TYPE_SETTING,
-        null,
-        'local_forumia_settings',
-        new \pix_icon('i/settings', '')
-    );
 }

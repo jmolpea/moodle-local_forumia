@@ -25,18 +25,18 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_forumia';
-$plugin->version   = 2026082701; // Verified against Moodle 5.2; supported range widened.
+$plugin->version   = 2026093000; // Moodle Marketplace review (MMRT-215) changes.
 $plugin->requires  = 2024100700; // Moodle 4.5.
 // Declare ONLY what has actually been tested. Both ends of this range have been
 // run for real: 4.5.10+ on PHP 8.2 and 5.2.2+ on PHP 8.3, each with the full
-// PHPUnit suite (58 tests) and the Behat scenarios green, plus a clean install
+// PHPUnit suite (94 tests as of 1.8.0) and the Behat scenarios green, plus a clean install
 // from an empty database. 5.0 and 5.1 sit inside the range and were verified by
 // API audit only - every core function and class this plugin touches is present
 // and unchanged in both - so they are covered by the declaration but have not
 // been run. Narrow this rather than widen it if that distinction ever matters.
 $plugin->supported = [405, 502]; // Moodle 4.5 LTS through 5.2.
 $plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = '1.7.1';
+$plugin->release   = '1.8.0';
 $plugin->dependencies = [
     'mod_forum' => 2024100700,
 ];

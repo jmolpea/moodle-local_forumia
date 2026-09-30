@@ -31,6 +31,23 @@ namespace local_forumia\api;
  * OpenAI is used, preserving the original behaviour.
  */
 class client_factory {
+    /** @var ai_client_base|null Client injected by unit tests. */
+    private static ?ai_client_base $testclient = null;
+
+    /**
+     * Makes create() return the given client. Unit tests only.
+     *
+     * @param  ai_client_base|null $client Client to return, or null to reset.
+     * @return void
+     * @throws \coding_exception Outside PHPUnit.
+     */
+    public static function set_test_client(?ai_client_base $client): void {
+        if (!defined('PHPUNIT_TEST') || !PHPUNIT_TEST) {
+            throw new \coding_exception('client_factory::set_test_client() is only available in unit tests.');
+        }
+        self::$testclient = $client;
+    }
+
     /**
      * Creates the client for the currently configured provider.
      *
@@ -39,6 +56,10 @@ class client_factory {
      *                           by the client constructor).
      */
     public static function create(): ai_client_base {
+        if (self::$testclient !== null && defined('PHPUNIT_TEST') && PHPUNIT_TEST) {
+            return self::$testclient;
+        }
+
         $provider = get_config('local_forumia', 'provider') ?: 'openai';
 
         switch ($provider) {

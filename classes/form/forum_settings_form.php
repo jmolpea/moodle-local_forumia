@@ -24,6 +24,8 @@
 
 namespace local_forumia\form;
 
+use local_forumia\grade_suggestions;
+
 defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
@@ -41,12 +43,9 @@ class forum_settings_form extends \moodleform {
      * @return void
      */
     public function definition(): void {
-        global $DB;
-
         $mform   = $this->_form;
         $forumid = $this->_customdata['forumid'];
         $cmid    = $this->_customdata['cmid'];
-        $course  = $this->_customdata['course'];
 
         $mform->addElement('hidden', 'forumid', $forumid);
         $mform->setType('forumid', PARAM_INT);
@@ -58,57 +57,19 @@ class forum_settings_form extends \moodleform {
         $mform->addElement('advcheckbox', 'enabled', get_string('forum_enabled', 'local_forumia'), '');
         $mform->setDefault('enabled', 0);
 
-        // 2. Bot user selector.
-        $candidateuserids = [];
-
-        // Site default bot.
-        $defaultbotsetting = get_config('local_forumia', 'defaultbot');
-        if (!empty($defaultbotsetting)) {
-            if (ctype_digit((string) $defaultbotsetting)) {
-                $candidateuserids[] = (int) $defaultbotsetting;
-            } else {
-                $botuser = $DB->get_record('user', ['username' => clean_param($defaultbotsetting, PARAM_USERNAME)]);
-                if ($botuser) {
-                    $candidateuserids[] = (int) $botuser->id;
-                }
-            }
-        }
-
-        // Teachers and managers in the course.
-        // Use $DB->get_record('role', ...) — get_role_by_shortname() does not exist in Moodle 4.5.
-        $context      = \context_course::instance($course->id);
-        $managerroles = ['editingteacher', 'teacher', 'manager', 'coursecreator'];
-        foreach ($managerroles as $roleshortname) {
-            $role = $DB->get_record('role', ['shortname' => $roleshortname]);
-            if (!$role) {
-                continue;
-            }
-            $users = get_role_users($role->id, $context, false, 'u.id', 'u.id');
-            foreach ($users as $u) {
-                $candidateuserids[] = (int) $u->id;
-            }
-        }
-
-        $candidateuserids = array_unique($candidateuserids);
-
-        // Build select options from the candidate user IDs.
+        // 2. Assistant account selector. Only accounts a site administrator has
+        // designated are offered (site default account, or holders of
+        // local/forumia:actasassistant at system level). Course teachers and
+        // managers are deliberately not candidates.
         $useroptions = ['' => get_string('choosedots')];
-        if (!empty($candidateuserids)) {
-            [$insql, $inparams] = $DB->get_in_or_equal($candidateuserids, SQL_PARAMS_NAMED);
-            $candidateusers = $DB->get_records_select(
-                'user',
-                "id $insql AND deleted = 0 AND suspended = 0",
-                $inparams,
-                'lastname ASC, firstname ASC',
-                'id, firstname, lastname, username, firstnamephonetic, lastnamephonetic, middlename, alternatename'
-            );
-            foreach ($candidateusers as $u) {
-                $useroptions[$u->id] = fullname($u) . ' (' . $u->username . ')';
-            }
+        foreach (\local_forumia\assistant_account::get_candidates() as $u) {
+            $useroptions[$u->id] = fullname($u) . ' (' . $u->username . ')';
         }
 
         $mform->addElement('select', 'bot_userid', get_string('forum_botuser', 'local_forumia'), $useroptions);
         $mform->setType('bot_userid', PARAM_INT);
+        $botusernote = count($useroptions) > 1 ? 'forum_botuser_desc' : 'forum_botuser_none';
+        $mform->addElement('static', 'bot_userid_note', '', get_string($botusernote, 'local_forumia'));
 
         // 3. Response mode.
         $radioarray = [
@@ -178,7 +139,24 @@ class forum_settings_form extends \moodleform {
         $mform->setDefault('max_requests_day', $globalmax);
         $mform->addElement('static', 'max_requests_day_note', '', get_string('forum_maxrequests_desc', 'local_forumia'));
 
-        // 8. Grading prompt (only used when the forum has whole-forum grading enabled).
+        // 8. AI grading: explicit opt-in, off by default. Each student is
+        // evaluated once, grading_delay hours after their first post.
+        $mform->addElement('select', 'grading_mode', get_string('forum_grading_mode', 'local_forumia'), [
+            grade_suggestions::MODE_OFF     => get_string('forum_grading_mode_off', 'local_forumia'),
+            grade_suggestions::MODE_SUGGEST => get_string('forum_grading_mode_suggest', 'local_forumia'),
+            grade_suggestions::MODE_AUTO    => get_string('forum_grading_mode_auto', 'local_forumia'),
+        ]);
+        $mform->setType('grading_mode', PARAM_INT);
+        $mform->setDefault('grading_mode', grade_suggestions::MODE_OFF);
+        $mform->addElement('static', 'grading_mode_note', '', get_string('forum_grading_mode_desc', 'local_forumia'));
+
+        $mform->addElement('text', 'grading_delay', get_string('forum_grading_delay', 'local_forumia'), ['size' => 6]);
+        $mform->setType('grading_delay', PARAM_INT);
+        $mform->setDefault('grading_delay', 12);
+        $mform->addElement('static', 'grading_delay_note', '', get_string('forum_grading_delay_desc', 'local_forumia'));
+        $mform->hideIf('grading_delay', 'grading_mode', 'eq', grade_suggestions::MODE_OFF);
+        $mform->hideIf('grading_delay_note', 'grading_mode', 'eq', grade_suggestions::MODE_OFF);
+
         $mform->addElement(
             'textarea',
             'grading_prompt',
@@ -189,6 +167,8 @@ class forum_settings_form extends \moodleform {
         $mform->setType('grading_prompt', PARAM_TEXT);
         $mform->setDefault('grading_prompt', get_string('forum_grading_prompt_default', 'local_forumia'));
         $mform->addElement('static', 'grading_prompt_note', '', get_string('forum_grading_prompt_desc', 'local_forumia'));
+        $mform->hideIf('grading_prompt', 'grading_mode', 'eq', grade_suggestions::MODE_OFF);
+        $mform->hideIf('grading_prompt_note', 'grading_mode', 'eq', grade_suggestions::MODE_OFF);
 
         // 9. Daily request limit per user.
         $mform->addElement(
@@ -277,18 +257,37 @@ class forum_settings_form extends \moodleform {
      * @return array        Associative array of field => error message.
      */
     public function validation($data, $files): array {
-        global $DB;
-
         $errors = parent::validation($data, $files);
+
+        // AI grading needs a forum with point-based whole-forum grading, and
+        // automatic mode records the saving teacher as the grader, so that
+        // teacher must be allowed to grade this forum.
+        $gradingmode = (int) ($data['grading_mode'] ?? grade_suggestions::MODE_OFF);
+        if ($gradingmode !== grade_suggestions::MODE_OFF) {
+            global $DB;
+            $forum = $DB->get_record('forum', ['id' => $data['forumid']], '*', MUST_EXIST);
+            if (!grade_suggestions::forum_supports_ai_grading($forum)) {
+                $errors['grading_mode'] = get_string('error_grading_unsupported', 'local_forumia');
+            }
+            $delay = (int) ($data['grading_delay'] ?? 0);
+            if ($delay < 1 || $delay > 720) {
+                $errors['grading_delay'] = get_string('error_grading_delay_invalid', 'local_forumia');
+            }
+        }
+        if ($gradingmode === grade_suggestions::MODE_AUTO) {
+            $modulecontext = \context_module::instance((int) $data['cmid']);
+            if (!has_capability('mod/forum:grade', $modulecontext)) {
+                $errors['grading_mode'] = get_string('error_grading_auto_nocapability', 'local_forumia');
+            }
+        }
 
         if (!empty($data['enabled'])) {
             if (empty($data['bot_userid'])) {
                 $errors['bot_userid'] = get_string('error_nobotuser', 'local_forumia', $data['forumid']);
-            } else {
-                $user = $DB->get_record('user', ['id' => $data['bot_userid'], 'deleted' => 0, 'suspended' => 0]);
-                if (!$user) {
-                    $errors['bot_userid'] = get_string('error_nobotuser', 'local_forumia', $data['forumid']);
-                }
+            } else if (!\local_forumia\assistant_account::get_active_user((int) $data['bot_userid'])) {
+                // Server-side check: the account must still be designated and
+                // active, whatever value the browser submitted.
+                $errors['bot_userid'] = get_string('error_botuser_notdesignated', 'local_forumia', $data['forumid']);
             }
 
             if (!in_array($data['response_mode'] ?? '', ['immediate', 'daily'], true)) {

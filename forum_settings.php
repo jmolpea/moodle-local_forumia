@@ -77,12 +77,28 @@ if ($mform->is_cancelled()) {
     $record = new stdClass();
     $record->forumid = clean_param($data->forumid, PARAM_INT);
     $record->enabled = clean_param($data->enabled ?? 0, PARAM_INT);
-    $record->bot_userid = clean_param($data->bot_userid, PARAM_INT);
+    // Absent when no assistant account has been designated on the site yet.
+    $record->bot_userid = clean_param($data->bot_userid ?? 0, PARAM_INT);
     $record->response_mode = clean_param($data->response_mode, PARAM_ALPHA);
     $record->immediate_prompt = clean_param($data->immediate_prompt ?? '', PARAM_TEXT);
     $record->daily_prompt = clean_param($data->daily_prompt ?? '', PARAM_TEXT);
     $record->disclaimer = clean_param($data->disclaimer ?? '', PARAM_TEXT);
     $record->grading_prompt = clean_param($data->grading_prompt ?? '', PARAM_TEXT);
+    $record->grading_mode = clean_param($data->grading_mode ?? 0, PARAM_INT);
+    if (!in_array($record->grading_mode, [0, 1, 2], true)) {
+        $record->grading_mode = 0;
+    }
+    $record->grading_delay = min(720, max(1, clean_param($data->grading_delay ?? 12, PARAM_INT)));
+    // Automatic mode records a real teacher as the grader: the one who switched
+    // it on. Re-saving the form keeps that teacher; switching the mode off
+    // clears it. The form has already checked this user can grade the forum.
+    $record->grading_userid = 0;
+    if ($record->grading_mode === \local_forumia\grade_suggestions::MODE_AUTO) {
+        $keep = $existingconfig
+            && (int) $existingconfig->grading_mode === \local_forumia\grade_suggestions::MODE_AUTO
+            && !empty($existingconfig->grading_userid);
+        $record->grading_userid = $keep ? (int) $existingconfig->grading_userid : (int) $USER->id;
+    }
     $record->max_requests_day = clean_param($data->max_requests_day ?? 50, PARAM_INT);
     $record->max_requests_user_day = clean_param($data->max_requests_user_day ?? 1, PARAM_INT);
     $record->delay_response = clean_param($data->delay_response ?? 0, PARAM_INT);

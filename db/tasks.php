@@ -36,6 +36,18 @@ $tasks = [
         'disabled'  => 0,
     ],
     [
+        // Hourly: evaluates each student once, grading_delay hours after their
+        // first post. A student who is already evaluated is never picked again.
+        'classname' => '\local_forumia\task\grading_task',
+        'blocking'  => 0,
+        'minute'    => '20',
+        'hour'      => '*',
+        'day'       => '*',
+        'month'     => '*',
+        'dayofweek' => '*',
+        'disabled'  => 0,
+    ],
+    [
         'classname' => '\local_forumia\task\inactivity_check_task',
         'blocking'  => 0,
         'minute'    => '30',

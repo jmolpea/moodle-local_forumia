@@ -3,6 +3,40 @@
 All notable changes to `local_forumia` are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [Semantic Versioning](https://semver.org/).
 
+## [1.8.0] — 2026-09-30
+
+Changes requested in the Moodle Marketplace review (MMRT-215).
+
+### Security
+- **The assistant never publishes under the name of a real teacher or manager.** The account it posts from must now be designated by a site administrator: the site default assistant account, or a user holding the new capability `local/forumia:actasassistant` at system level (granted to no role by default). The per-forum selector offers only those accounts, and the form re-checks the choice on the server.
+- **No automatic fallback to course staff.** When the configured account is missing, suspended or no longer designated, the assistant falls back to the site default account; if there is none, it disables itself in that forum and notifies the site administrators (new message provider `assistant_disabled`).
+- **Every AI reply is labelled as AI-generated** with a fixed notice that teachers cannot remove. The per-forum disclaimer is now optional extra text shown after it.
+
+### Changed
+- **AI grading is redesigned, and it is an explicit per-forum opt-in** (*Off* by default):
+  - It is no longer tied to replies. A new hourly scheduled task (`grading_task`) evaluates each student **once per forum**, *N* hours after their first post (`grading_delay`, 12 by default), using all of their posts so far. Each post is labelled as an original contribution, a reply to a classmate, to a teacher or to the assistant, or a follow-up; for replies, the message being answered is included as context only. Original contributions weigh more than replies to classmates.
+  - One evaluation per student and forum is enforced by a unique index, and evaluations are kept with a status (pending, accepted, discarded, applied, failed) instead of being deleted, so later posts, re-runs or discards never produce a new draft grade. A provider outage writes nothing and is retried; an unusable answer is stored as failed and not retried.
+  - **Suggest** mode: a user with `mod/forum:grade` accepts or discards each grade, or all at once, on the new *Forumia: AI grade suggestions* page, which also shows the AI's short justification and the student's current grade.
+  - **Automatic** mode (for self-paced courses): the grade is applied only to students without a grade and never replaces one; students who already have a grade are not even sent to the provider. It is recorded in the gradebook under the teacher who switched automatic mode on, who must hold `mod/forum:grade`. If that teacher is no longer able to grade, the evaluation stays pending for review instead.
+  - Grades are always written through `mod_forum`'s grading API (`core_grades\component_gradeitem`). Forums using a scale or an advanced grading method cannot enable AI grading.
+- **Upgrading switches AI grading off in every forum**, including those that kept the old pre-filled grading prompt, because nobody explicitly opted in to the new behaviour.
+- **Immediate mode never calls the AI provider inside the student's request.** The observer now always queues an adhoc task (with a one-hour delay when that option is on) and cron makes the call. Duplicate events for the same post queue a single task. A task that fails on configuration (no API key, blocked endpoint) logs and finishes instead of being retried indefinitely.
+- The grade in the AI's answer is accepted only from a well-formed JSON object, as a number within 0..max. The fallback that scraped `"grade": N` from free text is gone, and out-of-range values are rejected rather than clamped.
+- Immediate-mode replies no longer ask the AI for a grade at all.
+- Privacy provider rewritten: it now declares every field sent to the AI provider (post text, forum name, forum description, discussion subject), states that reactivation mode sends posts by every participant including teachers, and reports, exports and deletes both the assistant account link (`bot_userid`) and the new grade suggestions.
+- The site-wide rate limit is described correctly as a **daily** cap (the strings said "per hour").
+
+### Removed
+- Settings that no code ever read: `userratelimit_enabled`, `userratelimit_max` (the per-user limit is the per-forum *Daily request limit per user*) and `dailyhour` (the daily digest time is the schedule of its scheduled task). Their stored values are deleted on upgrade.
+- Capability `local/forumia:viewdisclaimer`, which no code checked.
+
+### Fixed
+- Missing language string `messageprovider:api_error`.
+- The previous grading code wrote to `forum_grades` with `itemnumber = 0`, which is the ratings slot; whole-forum grades live in `itemnumber = 1`. Replaced by the grading API.
+
+### Tests
+- 94 PHPUnit tests (was 58) and 9 Behat scenarios (was 4), green on Moodle 4.5.10+ (PHP 8.2) and 5.2.2+ (PHP 8.3). New coverage: task queueing and delay, designated-account rules and the disable-and-notify path, the mandatory AI notice, strict grade parsing, the one-evaluation-per-student rule, the context sent for replies to classmates, suggest and automatic modes (including `usermodified` and never overwriting a grade), and the privacy provider. A fake AI client can be injected in unit tests (`client_factory::set_test_client()`, PHPUnit only).
+
 ## [1.7.1] — 2026-08-27
 
 ### Changed

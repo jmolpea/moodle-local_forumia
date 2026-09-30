@@ -30,7 +30,8 @@ use local_forumia\api\ai_client_base;
  * Listens for forum events and delegates processing to {@see forum_processor}.
  *
  * The observer is intentionally lightweight: it performs only the minimal
- * pre-checks required to decide whether to hand off to the processor.
+ * local pre-checks and the processor then queues an adhoc task. The AI
+ * provider is never called inside the student's post request.
  * A top-level try/catch ensures that any failure in this plugin NEVER
  * interrupts the normal Moodle forum experience for end users.
  */

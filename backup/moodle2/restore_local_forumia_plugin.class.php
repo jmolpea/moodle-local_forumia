@@ -99,6 +99,15 @@ class restore_local_forumia_plugin extends restore_local_plugin {
             $data->enabled   = 0;
         }
 
+        // Remap the teacher responsible for automatic grades. If that teacher
+        // does not exist on the target, automatic mode falls back to
+        // suggestions: an automatic grade must always have a real grader.
+        $newgraderid = !empty($data->grading_userid) ? $this->get_mappingid('user', $data->grading_userid) : 0;
+        $data->grading_userid = $newgraderid ? $newgraderid : 0;
+        if ((int) ($data->grading_mode ?? 0) === 2 && !$data->grading_userid) {
+            $data->grading_mode = 1;
+        }
+
         // Reset the observability timestamp: it records when the inactivity
         // task last ran against the SOURCE forum. Carrying it over would make
         // the restored forum look as though it had already been processed, and

@@ -30,7 +30,10 @@ use local_forumia\license\validator;
 /**
  * Tests for the processor's pre-flight guard chain.
  *
- * Every test here asserts that process_new_post() returns WITHOUT reaching the
+ * The guard tests run the task path (process_new_post(..., true)), which is
+ * where the checks live since 1.8.0; the observer itself only queues a task.
+ *
+ * Every guard test asserts that process_new_post() returns WITHOUT reaching the
  * AI client. That matters twice over: each of these guards prevents a bill, and
  * the loop guards prevent an infinite exchange between the assistant and itself.
  *
@@ -75,6 +78,10 @@ final class forum_processor_test extends \advanced_testcase {
         $generator->enrol_user($this->teacher->id, $this->course->id, 'editingteacher');
         $generator->enrol_user($this->bot->id, $this->course->id, 'student');
 
+        // Designate the bot as an assistant account the way an administrator
+        // would: a system-level role holding local/forumia:actasassistant.
+        $this->designate($this->bot->id);
+
         // Licensed by default: the trial window starts now, so the licence gate
         // is open and the tests exercise the guards that come after it.
         set_config('firstinstall', time(), 'local_forumia');
@@ -87,6 +94,28 @@ final class forum_processor_test extends \advanced_testcase {
     protected function tearDown(): void {
         validator::reset_cache();
         parent::tearDown();
+    }
+
+    /**
+     * Grants local/forumia:actasassistant to a user at system level.
+     *
+     * @param  int $userid User to designate.
+     * @return void
+     */
+    private function designate(int $userid): void {
+        $system = \context_system::instance();
+        $roleid = $this->getDataGenerator()->create_role();
+        assign_capability(assistant_account::CAPABILITY, CAP_ALLOW, $roleid, $system->id);
+        role_assign($roleid, $userid, $system->id);
+    }
+
+    /**
+     * Returns the Forumia adhoc tasks currently queued.
+     *
+     * @return \core\task\adhoc_task[]
+     */
+    private function queued_tasks(): array {
+        return \core\task\manager::get_adhoc_tasks('\\local_forumia\\task\\delayed_response_task');
     }
 
     /**
@@ -171,7 +200,7 @@ final class forum_processor_test extends \advanced_testcase {
         $post   = $this->post_as($this->student->id);
         $before = $this->count_posts();
 
-        forum_processor::process_new_post($this->forum->id, $post->id, $this->student->id);
+        forum_processor::process_new_post($this->forum->id, $post->id, $this->student->id, true);
 
         $this->assertSame($before, $this->count_posts());
     }
@@ -183,7 +212,7 @@ final class forum_processor_test extends \advanced_testcase {
         $post   = $this->post_as($this->student->id);
         $before = $this->count_posts();
 
-        forum_processor::process_new_post($this->forum->id, $post->id, $this->student->id);
+        forum_processor::process_new_post($this->forum->id, $post->id, $this->student->id, true);
 
         $this->assertSame($before, $this->count_posts());
     }
@@ -196,7 +225,7 @@ final class forum_processor_test extends \advanced_testcase {
         $post   = $this->post_as($this->student->id);
         $before = $this->count_posts();
 
-        forum_processor::process_new_post($this->forum->id, $post->id, $this->student->id);
+        forum_processor::process_new_post($this->forum->id, $post->id, $this->student->id, true);
 
         $this->assertSame($before, $this->count_posts());
     }
@@ -209,7 +238,7 @@ final class forum_processor_test extends \advanced_testcase {
         $post   = $this->post_as($this->student->id);
         $before = $this->count_posts();
 
-        forum_processor::process_new_post($this->forum->id, $post->id, $this->student->id);
+        forum_processor::process_new_post($this->forum->id, $post->id, $this->student->id, true);
 
         $this->assertSame($before, $this->count_posts());
     }
@@ -226,7 +255,7 @@ final class forum_processor_test extends \advanced_testcase {
         $post   = $this->post_as($this->bot->id);
         $before = $this->count_posts();
 
-        forum_processor::process_new_post($this->forum->id, $post->id, $this->bot->id);
+        forum_processor::process_new_post($this->forum->id, $post->id, $this->bot->id, true);
 
         $this->assertSame($before, $this->count_posts());
         $this->assertDebuggingCalled(
@@ -249,7 +278,7 @@ final class forum_processor_test extends \advanced_testcase {
         $post   = $this->post_as($this->bot->id);
         $before = $this->count_posts();
 
-        forum_processor::process_new_post($this->forum->id, $post->id, $this->bot->id);
+        forum_processor::process_new_post($this->forum->id, $post->id, $this->bot->id, true);
 
         $this->assertSame($before, $this->count_posts());
         $this->assertDebuggingCalled(
@@ -266,7 +295,7 @@ final class forum_processor_test extends \advanced_testcase {
         $post   = $this->post_as($this->teacher->id);
         $before = $this->count_posts();
 
-        forum_processor::process_new_post($this->forum->id, $post->id, $this->teacher->id);
+        forum_processor::process_new_post($this->forum->id, $post->id, $this->teacher->id, true);
 
         $this->assertSame($before, $this->count_posts());
     }
@@ -300,7 +329,7 @@ final class forum_processor_test extends \advanced_testcase {
 
         $before = $this->count_posts();
 
-        forum_processor::process_new_post($this->forum->id, $post->id, $this->student->id);
+        forum_processor::process_new_post($this->forum->id, $post->id, $this->student->id, true);
 
         $this->assertSame($before, $this->count_posts());
         $this->assertDebuggingCalled(
@@ -335,7 +364,7 @@ final class forum_processor_test extends \advanced_testcase {
         $second = $this->post_as($this->student->id);
         $before = $this->count_posts();
 
-        forum_processor::process_new_post($this->forum->id, $second->id, $this->student->id);
+        forum_processor::process_new_post($this->forum->id, $second->id, $this->student->id, true);
 
         $this->assertSame($before, $this->count_posts());
         $this->assertDebuggingCalled(
@@ -361,7 +390,7 @@ final class forum_processor_test extends \advanced_testcase {
         $post   = $this->post_as($this->student->id);
         $before = $this->count_posts();
 
-        forum_processor::process_new_post($this->forum->id, $post->id, $this->student->id);
+        forum_processor::process_new_post($this->forum->id, $post->id, $this->student->id, true);
 
         $this->assertSame($before, $this->count_posts());
         $this->assertDebuggingCalled(
@@ -391,31 +420,143 @@ final class forum_processor_test extends \advanced_testcase {
     }
 
     /**
-     * The observer swallows every failure.
+     * Builds the post_created event for a post.
      *
-     * Whatever goes wrong inside this plugin, the student's post must still be
-     * saved and the forum page must still render. That promise is what makes
-     * the plugin safe to install on a live site.
+     * @param  \stdClass $post Post record.
+     * @return \mod_forum\event\post_created
      */
-    public function test_observer_never_propagates_an_exception(): void {
-        $this->set_forum_config();
-        $post = $this->post_as($this->student->id);
-
-        $event = \mod_forum\event\post_created::create([
+    private function post_created_event(\stdClass $post): \mod_forum\event\post_created {
+        return \mod_forum\event\post_created::create([
             'context'  => \context_module::instance($this->forum->cmid),
             'objectid' => $post->id,
-            'userid'   => $this->student->id,
+            'userid'   => (int) $post->userid,
             'other'    => [
                 'discussionid' => $post->discussion,
                 'forumid'      => $this->forum->id,
                 'forumtype'    => 'general',
             ],
         ]);
+    }
 
-        // No API key is configured, so the processor will fail internally.
-        // The observer must absorb that.
-        forum_observer::post_created($event);
+    /**
+     * The observer never calls the provider: it only queues an adhoc task.
+     *
+     * No API key is configured, so any provider call inside the observer would
+     * fail and be logged. Nothing is logged and nothing is posted: the student's
+     * request returns without waiting on the AI.
+     */
+    public function test_observer_queues_a_task_instead_of_calling_the_provider(): void {
+        $this->set_forum_config();
+        $post   = $this->post_as($this->student->id);
+        $before = $this->count_posts();
 
-        $this->assertDebuggingCalled(null, null, 'The failure should be logged, not thrown.');
+        forum_observer::post_created($this->post_created_event($post));
+
+        $this->assertSame($before, $this->count_posts());
+        $tasks = $this->queued_tasks();
+        $this->assertCount(1, $tasks);
+        $task = reset($tasks);
+        $this->assertEquals($post->id, $task->get_custom_data()->postid);
+        $this->assertLessThanOrEqual(time(), $task->get_next_run_time(), 'Without the delay option it runs on the next cron.');
+    }
+
+    /**
+     * A repeated event for the same post does not queue a second task.
+     */
+    public function test_repeated_event_queues_a_single_task(): void {
+        $this->set_forum_config();
+        $post = $this->post_as($this->student->id);
+
+        forum_observer::post_created($this->post_created_event($post));
+        forum_observer::post_created($this->post_created_event($post));
+
+        $this->assertCount(1, $this->queued_tasks());
+    }
+
+    /**
+     * The delay option pushes the task one hour into the future.
+     */
+    public function test_delay_option_queues_the_task_one_hour_later(): void {
+        $this->set_forum_config(['delay_response' => 1]);
+        $post = $this->post_as($this->student->id);
+
+        forum_observer::post_created($this->post_created_event($post));
+
+        $tasks = $this->queued_tasks();
+        $this->assertCount(1, $tasks);
+        $this->assertGreaterThanOrEqual(time() + HOURSECS - 5, reset($tasks)->get_next_run_time());
+    }
+
+    /**
+     * A failing task is logged and finishes, so cron does not retry it forever.
+     *
+     * No API key is configured: the processor throws when it builds the client.
+     */
+    public function test_task_failure_is_logged_not_rethrown(): void {
+        $this->set_forum_config(['max_requests_user_day' => 0]);
+        $post = $this->post_as($this->student->id);
+
+        $task = new \local_forumia\task\delayed_response_task();
+        $task->set_custom_data(['forumid' => $this->forum->id, 'postid' => $post->id, 'authorid' => $this->student->id]);
+
+        $this->expectOutputRegex('/delayed_response_task failed for post ' . $post->id . '/');
+        $task->execute();
+    }
+
+    /**
+     * A course teacher cannot be used as the assistant account.
+     *
+     * Before 1.8.0 the selector offered course staff and the processor fell back
+     * to a course teacher on its own. Now the forum is disabled instead, and the
+     * administrators are told.
+     */
+    public function test_undesignated_account_disables_the_forum_and_notifies(): void {
+        global $DB;
+
+        $this->set_forum_config(['bot_userid' => $this->teacher->id]);
+        $post   = $this->post_as($this->student->id);
+        $before = $this->count_posts();
+        $sink   = $this->redirectMessages();
+
+        forum_processor::process_new_post($this->forum->id, $post->id, $this->student->id, true);
+
+        $this->assertSame($before, $this->count_posts());
+        $this->assertEquals(0, $DB->get_field('local_forumia_config', 'enabled', ['forumid' => $this->forum->id]));
+        $this->assertDebuggingCalledCount(2);
+
+        $messages = $sink->get_messages();
+        $this->assertCount(count(get_admins()), $messages);
+        $this->assertSame('assistant_disabled', reset($messages)->eventtype);
+        $sink->close();
+    }
+
+    /**
+     * Course staff are never candidates; designated accounts are.
+     */
+    public function test_only_designated_accounts_are_candidates(): void {
+        $candidates = assistant_account::get_candidates();
+
+        $this->assertArrayHasKey($this->bot->id, $candidates);
+        $this->assertArrayNotHasKey($this->teacher->id, $candidates);
+        $this->assertFalse(assistant_account::is_designated((int) $this->teacher->id));
+
+        // A site administrator is not a candidate just for being an administrator.
+        $this->assertFalse(assistant_account::is_designated((int) get_admin()->id));
+
+        set_config('defaultbot', $this->teacher->username, 'local_forumia');
+        $this->assertTrue(assistant_account::is_designated((int) $this->teacher->id));
+    }
+
+    /**
+     * Every reply carries the fixed AI notice, even with an empty disclaimer.
+     */
+    public function test_ai_notice_is_always_added(): void {
+        $notice = get_string('ai_notice', 'local_forumia');
+
+        $this->assertStringContainsString($notice, forum_processor::append_ai_notice('Reply.', ''));
+
+        $withdisclaimer = forum_processor::append_ai_notice('Reply.', 'Ask your teacher.');
+        $this->assertStringContainsString($notice, $withdisclaimer);
+        $this->assertStringContainsString('Ask your teacher.', $withdisclaimer);
     }
 }

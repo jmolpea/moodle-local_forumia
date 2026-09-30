@@ -206,41 +206,18 @@ if ($hassiteconfig) {
         PARAM_INT
     ));
 
-    // 5. Per-user rate limit.
-    $settings->add(new admin_setting_configcheckbox(
-        'local_forumia/userratelimit_enabled',
-        get_string('settings_userratelimit', 'local_forumia'),
-        get_string('settings_userratelimit_desc', 'local_forumia'),
-        0
-    ));
-    $settings->add(new admin_setting_configtext(
-        'local_forumia/userratelimit_max',
-        get_string('settings_userratelimit_max', 'local_forumia'),
-        '',
-        10,
-        PARAM_INT
-    ));
+    // The per-user limit lives in each forum's settings (max_requests_user_day),
+    // and the daily summary time is the schedule of its scheduled task
+    // (Site administration > Server > Tasks > Scheduled tasks).
 
-    // 6. Daily summary hour.
-    $houroptions = [];
-    for ($h = 0; $h <= 23; $h++) {
-        $label = str_pad((string) $h, 2, '0', STR_PAD_LEFT) . ':00';
-        $houroptions[$h] = $label;
-    }
-    $settings->add(new admin_setting_configselect(
-        'local_forumia/dailyhour',
-        get_string('settings_dailyhour', 'local_forumia'),
-        get_string('settings_dailyhour_desc', 'local_forumia'),
-        8,
-        $houroptions
-    ));
-
-    // 7. Default site IA user.
+    // 5. Default site-wide AI assistant account. Together with the
+    // local/forumia:actasassistant capability, this is the only way an account
+    // becomes eligible to publish the assistant's replies.
     // PARAM_NOTAGS strips any HTML/script tags while preserving all valid
     // Moodle username characters (letters, digits, dots, hyphens, @, etc.).
     // PARAM_RAW_TRIMMED was too permissive — it would allow HTML injection
     // into the stored value. The field is further sanitised at read time
-    // via clean_param($setting, PARAM_USERNAME) in resolve_default_bot_userid().
+    // via clean_param($setting, PARAM_USERNAME) in assistant_account::get_default_userid().
     $settings->add(new admin_setting_configtext(
         'local_forumia/defaultbot',
         get_string('settings_defaultbot', 'local_forumia'),

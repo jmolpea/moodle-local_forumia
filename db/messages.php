@@ -17,8 +17,10 @@
 /**
  * Message provider definitions for local_forumia.
  *
- * Registers the "api_error" notification used to alert site administrators
- * when the OpenAI API key is invalid or unauthorised.
+ * - api_error: alerts site administrators when the AI provider rejects the
+ *   API key.
+ * - assistant_disabled: alerts site administrators when the assistant was
+ *   disabled in a forum because no designated assistant account is available.
  *
  * @package   local_forumia
  * @copyright 2025 RSMAX Consulting S.L.
@@ -35,4 +37,5 @@ defined('MOODLE_INTERNAL') || die();
 // so no explicit default is needed here.
 $messageproviders = [
     'api_error' => [],
+    'assistant_disabled' => [],
 ];

@@ -74,6 +74,9 @@ class backup_local_forumia_plugin extends backup_local_plugin {
             'max_requests_user_day',
             'delay_response',
             'grading_prompt',
+            'grading_mode',
+            'grading_delay',
+            'grading_userid',
             'inactivity_enabled',
             'inactivity_days',
             'inactivity_repeat_days',
@@ -91,6 +94,7 @@ class backup_local_forumia_plugin extends backup_local_plugin {
 
         // Annotate the bot user so Moodle can remap it on restore.
         $config->annotate_ids('user', 'bot_userid');
+        $config->annotate_ids('user', 'grading_userid');
 
         return $plugin;
     }
